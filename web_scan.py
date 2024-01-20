@@ -7,20 +7,25 @@ import time
 import logging
 
 # Constants
-FEROX_OUTPUT = "/ferox.txt"
-NIKTO_OUTPUT = "/nikto.html"
-WHATWEB_OUTPUT = "/whatweb.txt"
-NMAP_OUTPUT = "/nmap.txt"
+FEROX_OUTPUT = "ferox.txt"
+NIKTO_OUTPUT = "nikto.html"
+WHATWEB_OUTPUT = "whatweb.txt"
+NMAP_OUTPUT = "nmap.txt"
 NIKTO_ERROR = "Invalid argument at /var/lib/nikto/plugins/LW2.pm line 5254"
+
+# Function to handle proxy and cookies flags.
+def handle_proxy_cookies(args, proxy, cookies, proxy_flag, cookie_flag, extra_flags=[]):
+    if proxy is not None: # Use proxy
+        args += [proxy_flag, proxy]
+    if cookies is not None: # Set cookies
+        args += [cookie_flag, cookies]
+    args += extra_flags
+    return args
 
 def feroxbuster(target, scan_dir, proxy, cookies, threaded):
     # Run feroxbuster
     ferox_args = ["feroxbuster", "-u", target, "-o", f"{scan_dir}/{FEROX_OUTPUT}"]
-
-    if proxy is not None: # Use proxy
-        ferox_args += ["-p", proxy, "--insecure"]
-    if cookies is not None: # Set cookies
-        ferox_args += ["-b", cookies]
+    ferox_args = handle_proxy_cookies(ferox_args, proxy, cookies, "-p", "-b", ["--insecure",])
 
     ferox_args.append("--no-state") # Don't use state files for now at least.
     if threaded:
@@ -31,12 +36,8 @@ def feroxbuster(target, scan_dir, proxy, cookies, threaded):
 def nikto_scan(target, scan_dir, proxy, cookies, threaded):
     # Run nikto
     nikto_args = ["nikto", "-h", target, "-Format", "html", "-o", f"{scan_dir}/{NIKTO_OUTPUT}"]
+    nikto_args = handle_proxy_cookies(nikto_args, proxy, f"STATIC-COOKIE=\"{cookies}\"", "-useproxy", "-O")
 
-    if proxy is not None: # Use proxy
-        nikto_args += ["-useproxy", proxy, "-O", "LW_SSL_ENGINE=SSLeay"]
-    if cookies is not None: # Set cookies
-        nikto_args += ["-O", f"STATIC-COOKIE=\"{cookies}\""]
-    
     nikto_proc = None
     if threaded:
         nikto_proc = subprocess.run(nikto_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -53,9 +54,8 @@ def what_web(target, scan_dir, proxy, cookies, threaded):
     # PROXY ERROR: https://github.com/urbanadventurer/WhatWeb/issues/389
     #if proxy is not None: # Use proxy
     #whatweb_args += ["--proxy", proxy.split("//")[1]]
-    if cookies is not None: # Set cookies
-        whatweb_args += ["-c", cookies]
-
+    whatweb_args = handle_proxy_cookies(whatweb_args, None, cookies, "", "-c") # Set cookies.
+    
     whatweb_args.append(target)
 
     whatweb_proc = None
