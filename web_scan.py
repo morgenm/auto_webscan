@@ -22,7 +22,7 @@ def handle_proxy_cookies(args, proxy, cookies, proxy_flag, cookie_flag, extra_fl
     args += extra_flags
     return args
 
-def feroxbuster(target, scan_dir, proxy, cookies, threaded):
+def run_feroxbuster(target, scan_dir, proxy, cookies, threaded):
     # Run feroxbuster
     ferox_args = ["feroxbuster", "-u", target, "-o", f"{scan_dir}/{FEROX_OUTPUT}"]
     ferox_args = handle_proxy_cookies(ferox_args, proxy, cookies, "-p", "-b", ["--insecure",])
@@ -33,7 +33,7 @@ def feroxbuster(target, scan_dir, proxy, cookies, threaded):
     else:
         subprocess.run(ferox_args)
 
-def nikto_scan(target, scan_dir, proxy, cookies, threaded):
+def run_nikto_scan(target, scan_dir, proxy, cookies, threaded):
     # Run nikto
     nikto_args = ["nikto", "-h", target, "-Format", "html", "-o", f"{scan_dir}/{NIKTO_OUTPUT}"]
     nikto_args = handle_proxy_cookies(nikto_args, proxy, f"STATIC-COOKIE=\"{cookies}\"", "-useproxy", "-O")
@@ -47,7 +47,7 @@ def nikto_scan(target, scan_dir, proxy, cookies, threaded):
     if NIKTO_ERROR in nikto_proc.stderr.decode():
         logging.error("Nikto proxy error. Try adding \"LW_SSL_ENGINE=SSLeay\" to the nikto.conf file.")
 
-def what_web(target, scan_dir, proxy, cookies, threaded):
+def run_whatweb(target, scan_dir, proxy, cookies, threaded):
     # Run whatweb
     whatweb_args = ["whatweb", "-a", "4", f"--log-verbose={scan_dir}/{WHATWEB_OUTPUT}"]
 
@@ -66,7 +66,7 @@ def what_web(target, scan_dir, proxy, cookies, threaded):
         logging.info(whatweb_proc.stdout.decode())
 
 # No proxying or cookies with nmap.
-def nmap_web_scan(target, scan_dir, proxy, cookies, threaded):
+def run_nmap_web_scan(target, scan_dir, proxy, cookies, threaded):
     # Run nmap
     nmap_args = ["nmap", "-sV", "-p", "443,80", "-v", "--script=vuln", "-oN", f"{scan_dir}/{NMAP_OUTPUT}", target.split("//")[1]]
 
@@ -76,8 +76,15 @@ def nmap_web_scan(target, scan_dir, proxy, cookies, threaded):
     else:
         nmap_proc = subprocess.run(nmap_args)
 
-
 def main(args):
+    tools_funcs = {"ferox" : run_feroxbuster, "nikto" : run_nikto_scan, "whatweb" : run_whatweb, "nmap" : run_nmap_web_scan}
+
+    # Ensure arguments are valid.
+    for tool in args.scan_tools:
+        if tool not in tools_funcs:
+            logging.error("%s is not a valid tool. Valid tools: %s.", tool, ",".join(tools_funcs.keys()))
+            exit(1)
+
     # Set logging level and format.
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -101,18 +108,11 @@ def main(args):
         os.mkdir(scan_dir)
     except FileExistsError:
         logging.warning(f"{scan_dir} dir already exists. Not creating it.")
-    
 
     if args.threads is not None and args.threads > 1:
         procs = []
-        ferox_proc = Process(target=feroxbuster, args=(args.target, scan_dir, args.proxy, args.cookies,True))
-        procs.append(("Ferox", ferox_proc))
-        nikto_proc = Process(target=nikto_scan, args=(args.target, scan_dir, args.proxy, args.cookies, True))
-        procs.append(("Nikto", nikto_proc))
-        whatweb_proc = Process(target=what_web, args=(args.target, scan_dir, args.proxy, args.cookies, True))
-        procs.append(("WhatWeb", whatweb_proc))
-        nmap_proc = Process(target=nmap_web_scan, args=(args.target, scan_dir, args.proxy, args.cookies, True))
-        procs.append(("Nmap", nmap_proc))
+        for tool in args.scan_tools:
+            procs.append((tool, Process(target=tools_funcs[tool], args=(args.target, scan_dir, args.proxy, args.cookies, True))))
 
         running_procs = []
         finished_procs = []
@@ -131,11 +131,11 @@ def main(args):
             time.sleep(1)
     
     else: # Run consecutively.
-        feroxbuster(args.target, scan_dir, args.proxy, args.cookies, False)
-        nikto_scan(args.target, scan_dir, args.proxy, args.cookies, False)
-        what_web(args.target, scan_dir, args.proxy, args.cookies, False)
-        nmap_web_scan(args.target, scan_dir, args.proxy, args.cookies, False)
+        for tool in args.scan_tools:
+            tools_funcs[tool](args.target, scan_dir, args.proxy, args.cookies, False)
 
+def comma_separated_strings(input_string):
+    return input_string.split(',')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Simple script for automating web app scans.")
@@ -143,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--proxy", type=str, help="HTTP Proxy. Example: http://localhost:8080")
     parser.add_argument("-c", "--cookies", type=str, help="HTTP Cookies. Example: --cookies \"auth=token;cool=wow\"")
     parser.add_argument("-t", "--threads", type=int, default=None, help="Number of processes (threads). Run multiple processes simulatenously for faster scans.")
+    parser.add_argument("-s", "--scan-tools", type=comma_separated_strings, default=["ferox", "nikto", "whatweb", "nmap"], help="Comma separated list of scan tools to run. Default: ferox,nikto,whatweb,nmap")
 
     args = parser.parse_args()
 
