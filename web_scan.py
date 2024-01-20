@@ -52,8 +52,6 @@ def run_whatweb(target, scan_dir, proxy, cookies, threaded):
     whatweb_args = ["whatweb", "-a", "4", f"--log-verbose={scan_dir}/{WHATWEB_OUTPUT}"]
 
     # PROXY ERROR: https://github.com/urbanadventurer/WhatWeb/issues/389
-    #if proxy is not None: # Use proxy
-    #whatweb_args += ["--proxy", proxy.split("//")[1]]
     whatweb_args = handle_proxy_cookies(whatweb_args, None, cookies, "", "-c") # Set cookies.
     
     whatweb_args.append(target)
@@ -107,7 +105,7 @@ def main(args):
     try:
         os.mkdir(scan_dir)
     except FileExistsError:
-        logging.warning(f"{scan_dir} dir already exists. Not creating it.")
+        logging.warning("%s dir already exists. Not creating it.", scan_dir)
 
     if args.threads is not None and args.threads > 1:
         procs = []
@@ -121,12 +119,12 @@ def main(args):
                 if i not in running_procs and len(running_procs) < args.threads and i not in finished_procs:
                     procs[i][1].start()
                     running_procs.append(i)
-                    logging.info(f"{procs[i][0]} started running.")
+                    logging.info("%s started running.", procs[i][0])
                 elif i in running_procs:
                     if not procs[i][1].is_alive():
                         finished_procs.append(i)
                         running_procs.remove(i)
-                        logging.info(f"{procs[i][0]} finished running.")
+                        logging.info("%s finished running.", procs[i][0])
 
             time.sleep(1)
     
