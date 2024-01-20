@@ -5,9 +5,16 @@ import os
 from multiprocessing import Process
 import time
 
+# Constants
+FEROX_OUTPUT = "/ferox.txt"
+NIKTO_OUTPUT = "/nikto.html"
+WHATWEB_OUTPUT = "/whatweb.txt"
+NMAP_OUTPUT = "/nmap.txt"
+NIKTO_ERROR = "Invalid argument at /var/lib/nikto/plugins/LW2.pm line 5254"
+
 def feroxbuster(target, scan_dir, proxy, cookies, threaded):
     # Run feroxbuster
-    ferox_args = ["feroxbuster", "-u", target, "-o", f"{scan_dir}/ferox.txt"]
+    ferox_args = ["feroxbuster", "-u", target, "-o", f"{scan_dir}/{FEROX_OUTPUT}"]
 
     if proxy is not None: # Use proxy
         ferox_args += ["-p", proxy, "--insecure"]
@@ -22,7 +29,7 @@ def feroxbuster(target, scan_dir, proxy, cookies, threaded):
 
 def nikto_scan(target, scan_dir, proxy, cookies, threaded):
     # Run nikto
-    nikto_args = ["nikto", "-h", target, "-Format", "html", "-o", f"{scan_dir}/nikto.html"]
+    nikto_args = ["nikto", "-h", target, "-Format", "html", "-o", f"{scan_dir}/{NIKTO_OUTPUT}"]
 
     if proxy is not None: # Use proxy
         nikto_args += ["-useproxy", proxy, "-O", "LW_SSL_ENGINE=SSLeay"]
@@ -35,12 +42,12 @@ def nikto_scan(target, scan_dir, proxy, cookies, threaded):
     else:
         nikto_proc = subprocess.run(nikto_args, stderr=subprocess.PIPE)
 
-    if "Invalid argument at /var/lib/nikto/plugins/LW2.pm line 5254" in nikto_proc.stderr.decode():
+    if NIKTO_ERROR in nikto_proc.stderr.decode():
         print("[!] Nikto proxy error. Try adding \"LW_SSL_ENGINE=SSLeay\" to the nikto.conf file.")
 
 def what_web(target, scan_dir, proxy, cookies, threaded):
     # Run whatweb
-    whatweb_args = ["whatweb", "-a", "4", f"--log-verbose={scan_dir}/whatweb.log"]
+    whatweb_args = ["whatweb", "-a", "4", f"--log-verbose={scan_dir}/{WHATWEB_OUTPUT}"]
 
     # PROXY ERROR: https://github.com/urbanadventurer/WhatWeb/issues/389
     #if proxy is not None: # Use proxy
@@ -57,13 +64,10 @@ def what_web(target, scan_dir, proxy, cookies, threaded):
         whatweb_proc = subprocess.run(whatweb_args, stdout=subprocess.PIPE)
         print(whatweb_proc.stdout.decode())
 
-    with open(f"{scan_dir}/whatweb.txt", 'w') as f:
-        f.write(whatweb_proc.stdout.decode())
-
 # No proxying or cookies with nmap.
 def nmap_web_scan(target, scan_dir, proxy, cookies, threaded):
     # Run nmap
-    nmap_args = ["nmap", "-sV", "-p", "443,80", "-v", "--script=vuln", "-oN", f"{scan_dir}/nmap.txt", target.split("//")[1]]
+    nmap_args = ["nmap", "-sV", "-p", "443,80", "-v", "--script=vuln", "-oN", f"{scan_dir}/{NMAP_OUTPUT}", target.split("//")[1]]
 
     nmap_proc = None
     if threaded:
