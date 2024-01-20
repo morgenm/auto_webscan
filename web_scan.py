@@ -4,6 +4,7 @@ import subprocess
 import os
 from multiprocessing import Process
 import time
+import logging
 
 # Constants
 FEROX_OUTPUT = "/ferox.txt"
@@ -43,7 +44,7 @@ def nikto_scan(target, scan_dir, proxy, cookies, threaded):
         nikto_proc = subprocess.run(nikto_args, stderr=subprocess.PIPE)
 
     if NIKTO_ERROR in nikto_proc.stderr.decode():
-        print("[!] Nikto proxy error. Try adding \"LW_SSL_ENGINE=SSLeay\" to the nikto.conf file.")
+        logging.error("Nikto proxy error. Try adding \"LW_SSL_ENGINE=SSLeay\" to the nikto.conf file.")
 
 def what_web(target, scan_dir, proxy, cookies, threaded):
     # Run whatweb
@@ -62,7 +63,7 @@ def what_web(target, scan_dir, proxy, cookies, threaded):
         whatweb_proc = subprocess.run(whatweb_args, capture_output=True)
     else:
         whatweb_proc = subprocess.run(whatweb_args, stdout=subprocess.PIPE)
-        print(whatweb_proc.stdout.decode())
+        logging.info(whatweb_proc.stdout.decode())
 
 # No proxying or cookies with nmap.
 def nmap_web_scan(target, scan_dir, proxy, cookies, threaded):
@@ -77,11 +78,14 @@ def nmap_web_scan(target, scan_dir, proxy, cookies, threaded):
 
 
 def main(args):
+    # Set logging level and format.
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
     # Make output dirs
     try:
         os.mkdir("web_app_scans") # Top level dir
     except FileExistsError:
-        print("[~] web_app_scans dir already exists. Not creating it.")
+        logging.warn("web_app_scans dir already exists. Not creating it.")
 
     # Full scan dir based on target host
     scan_dir = args.target
@@ -96,7 +100,7 @@ def main(args):
     try:
         os.mkdir(scan_dir)
     except FileExistsError:
-        print(f"[~] {scan_dir} dir already exists. Not creating it.")
+        logging.warn(f"{scan_dir} dir already exists. Not creating it.")
     
 
     if args.threads is not None and args.threads > 1:
@@ -117,12 +121,12 @@ def main(args):
                 if i not in running_procs and len(running_procs) < args.threads and i not in finished_procs:
                     procs[i][1].start()
                     running_procs.append(i)
-                    print(f"[~] {procs[i][0]} started running.")
+                    logging.info(f"{procs[i][0]} started running.")
                 elif i in running_procs:
                     if not procs[i][1].is_alive():
                         finished_procs.append(i)
                         running_procs.remove(i)
-                        print(f"[~] {procs[i][0]} finished running.")
+                        logging.info(f"{procs[i][0]} finished running.")
 
             time.sleep(1)
     
