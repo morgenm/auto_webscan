@@ -85,7 +85,7 @@ def main(args):
     try:
         os.mkdir("web_app_scans") # Top level dir
     except FileExistsError:
-        logging.warn("web_app_scans dir already exists. Not creating it.")
+        logging.warning("web_app_scans dir already exists. Not creating it.")
 
     # Full scan dir based on target host
     scan_dir = args.target
@@ -100,7 +100,7 @@ def main(args):
     try:
         os.mkdir(scan_dir)
     except FileExistsError:
-        logging.warn(f"{scan_dir} dir already exists. Not creating it.")
+        logging.warning(f"{scan_dir} dir already exists. Not creating it.")
     
 
     if args.threads is not None and args.threads > 1:
