@@ -12,12 +12,12 @@ This is a Python script for streamlining web application scanning. It integrates
 To use this tool, clone this repo and run the python script.
 
 ```bash
-python3 web_scan.py <target> [-p <proxy>] [-c <cookies>] [-t <threads>] [-s <scan-tools>]
+python3 auto_webscan.py <target> [-p <proxy>] [-c <cookies>] [-t <threads>] [-s <scan-tools>]
 ```
 
 For additional help, use:
 ```bash
-python3 web_scan.py --help
+python3 auto_webscan.py --help
 ```
 
 ## HTTP Proxy Support
